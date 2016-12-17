@@ -1,0 +1,14 @@
+include README.rst
+include MANIFEST.in
+include CHANGELOG.rst
+include setup.py
+
+include submeter.egg-info/PKG-INFO
+include submeter.egg-info/SOURCES.txt
+include submeter.egg-info/dependency_links.txt
+include submeter.egg-info/requires.txt
+include submeter.egg-info/top_level.txt
+include submeter.egg-info/zip-safe
+
+include submeter/__init__.py
+include submeter/base.py
