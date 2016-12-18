@@ -5,7 +5,7 @@ from __future__ import unicode_literals, print_function
 
 import time
 
-from conf import db_session
+from conf import debug, db_session
 from table import FollowUP
 
 
@@ -17,10 +17,10 @@ def main():
         部署方式可以加入supervisor或者screen里运行, 周期性地按指定时间间隔循环.
     """
 
-    followup = FollowUP('followup', db_session)
+    followup = FollowUP('followup', db_session, debug=debug)
 
     # 分表的配置数据置前设置.
-    followup.table_capacity = 5
+    followup.table_capacity = 30
     followup.union_number = 0
 
     while True:
@@ -38,10 +38,10 @@ def mirror():
         部署方式可以加入到Cron里, 以数据的增量大致周期运行.
     """
 
-    followup = FollowUP('followup', db_session)
+    followup = FollowUP('followup', db_session, debug=debug)
 
     # 分表的配置数据置前设置.
-    followup.table_capacity = 5
+    followup.table_capacity = 30
     followup.union_number = 0
 
     followup.run()
@@ -49,5 +49,5 @@ def mirror():
 
 
 if __name__ == '__main__':
-    main()
-    # mirror()
+    # main()
+    mirror()
