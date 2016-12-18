@@ -1,7 +1,10 @@
 # !/usr/bin/env python
 # coding: utf-8
 
-from __future__ import unicode_literals, print_function
+from __future__ import unicode_literals, print_function, division
+
+import time
+import six
 
 
 class TableSuffix(object):
@@ -11,13 +14,13 @@ class TableSuffix(object):
         self.debug = debug
         self.db = db
 
-        self.init_status = False
+        self.init_status = 0
 
         self._create_table_sql = None
         self._union_number = union_number
         self._table_capacity = table_capacity
         self._child = 'ENGINE=MyISAM DEFAULT CHARSET=utf8'
-        self._merge = ('ENGINE=MERGE UNION=(%s) '
+        self._merge = ('ENGINE=MRG_MYISAM UNION=(%s) '
                        'INSERT_METHOD=LAST DEFAULT CHARSET=utf8')
 
     @property
@@ -81,7 +84,7 @@ class TableSuffix(object):
         return self._create_table_sql
 
     def _set_create_table_sql(self, value):
-        if not isinstance(value, int):
+        if not isinstance(value, six.string_types):
             raise ValueError
         self._create_table_sql = value
 
@@ -145,7 +148,7 @@ class TableSuffix(object):
 
         # 判断使用场景, 如果无记录为最初原表.
         if not self.table_suffix:
-            self.init_status = True
+            self.init_status = 1
 
             # 计算原表最新最大数据Id, 确定分多少子表.
             latest_max_id = self.table_latest
@@ -159,37 +162,49 @@ class TableSuffix(object):
 
             return table_total
         else:
+            self.init_status = 2
             create_child()
             return 1
 
     def run(self):
         try:
-            if self.init_status:
+            child_num = self.work()
+            if self.init_status == 1:
                 # 备份: 备份指定表的原表.
                 print('Backup Data: >> Rename Table For %s.' % self.table_name)
 
                 backup_table_sql = (
-                    'ALTER TABLE {old_name} RENAME TO  {new_name}'
-                ).format(old_name=self.table_name,
-                         new_name='%s_bck' % self.table_name)
+                    'ALTER TABLE {old_name} RENAME TO  {new_name}').format(
+                    old_name=self.table_name,
+                    new_name='%s_bck' % self.table_name)
+                self.db.execute(backup_table_sql)
+            elif self.init_status == 2:
+                # 备份: 备份原来的Merge表.
+                back_merge_table = '%s_%s' % (self.table_name, time.time())
+                print('Backup Merge: >> Rename %s To %s.' %
+                      (self.table_name, back_merge_table))
+
+                backup_table_sql = (
+                    'ALTER TABLE {old_name} RENAME TO  {new_name}').format(
+                    old_name=self.table_name,
+                    new_name=back_merge_table)
                 self.db.execute(backup_table_sql)
 
-            child_num = self.work()
             self._update(child_num)
             self.db.commit()
         except Exception as ex:
             print(ex)
             self.db.rollback()
         else:
-            if self.init_status:
+            if self.init_status == 1:
                 # 初始化: 原表数据导入分表.
                 print('Init Data: >> From Backup Import Data To Child Table.')
 
                 for suffix_num in range(1, self.table_suffix + 1):
                     # TODO:分表的导入, 即使单表500万一次导入也可能造成MySQL高负载.
                     init_table_sql = (
-                        'INSERT INTO {new_name} SELECT * FROM {old_name} '
-                        'WHERE id BETWEEN :start_id AND :end_id'
+                        "INSERT INTO {new_name} SELECT * FROM {old_name} "
+                        "WHERE id > :start_id AND id <= :end_id"
                     ).format(
                         new_name='%s_%s' % (self.table_name, str(suffix_num)),
                         old_name='%s_bck' % self.table_name)
