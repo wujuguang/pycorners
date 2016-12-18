@@ -112,7 +112,7 @@ class TableSuffix(object):
 
         # 3 >> 更新指定表的UNION.
         print('3 >> Starting Merge Child Tables For %s.' % self.table_name)
-        name_suffix = self.table_suffix + child_num
+        name_suffix = self.table_suffix
         unions = ['%s_%s' % (self.table_name, i) for i in
                   range(1, name_suffix + 1)]
 
@@ -180,7 +180,8 @@ class TableSuffix(object):
                 self.db.execute(backup_table_sql)
             elif self.init_status == 2:
                 # 备份: 备份原来的Merge表.
-                back_merge_table = '%s_%s' % (self.table_name, time.time())
+                back_merge_table = '%s_%s' % (
+                    self.table_name, str(int(time.time())))
                 print('Backup Merge: >> Rename %s To %s.' %
                       (self.table_name, back_merge_table))
 
