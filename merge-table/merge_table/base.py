@@ -201,21 +201,42 @@ class TableSuffix(object):
                 # 初始化: 原表数据导入分表.
                 print('Init Data: >> From Backup Import Data To Child Table.')
 
+                # 批次间隔休息时间, 批次容量.
+                sleep_times, data_size = 2, 1000
+
                 for suffix_num in range(1, self.table_suffix + 1):
-                    # TODO:分表的导入, 即使单表500万一次导入也可能造成MySQL高负载.
+                    # 分表的导入, 即使单表500万一次导入也可能造成MySQL高负载.
                     init_table_sql = (
                         "INSERT INTO {new_name} SELECT * FROM {old_name} "
-                        "WHERE id > :start_id AND id <= :end_id"
+                        "WHERE id > :start_id AND id <= :end_id "
+                        "LIMIT :start_id, :data_size"
                     ).format(
                         new_name='%s_%s' % (self.table_name, str(suffix_num)),
                         old_name='%s_bck' % self.table_name)
 
-                    params = dict(
-                        start_id=self.table_capacity * (suffix_num - 1),
-                        end_id=self.table_capacity * suffix_num)
+                    start_id = self.table_capacity * (suffix_num - 1),
+                    end_id = self.table_capacity * suffix_num
+                    params = dict(end_id=end_id, data_size=data_size)
 
-                    self.db.execute(init_table_sql, params=params)
-                self.db.commit()
+                    # 如果单表数据量大, 分批导入数据.
+                    if (end_id - start_id) > data_size:
+                        page_total = (end_id - start_id) / data_size
+                        if isinstance(page_total, float):
+                            page_total = int(page_total) + 1
+
+                        for i in range(0, page_total):
+                            params.update({
+                                'start_id': start_id + data_size * (i - 1)
+                            })
+
+                            self.db.execute(init_table_sql, params=params)
+                            self.db.commit()
+                            time.sleep(sleep_times)
+                    else:
+                        params.update({'start_id': start_id})
+                        self.db.execute(init_table_sql, params=params)
+                        self.db.commit()
+                        time.sleep(sleep_times)
 
     def drop_table(self):
         """删除测试创建的表.
