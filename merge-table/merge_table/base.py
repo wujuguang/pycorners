@@ -94,6 +94,11 @@ class TableSuffix(object):
 
     del _get_create_table_sql, _set_create_table_sql
 
+    def _execute_sleep(self, sql, params, sleep_time):
+        self.db.execute(sql, params=params)
+        self.db.commit()
+        time.sleep(sleep_time)
+
     def _update(self, child_num=1):
         """
             2 >> 分表后: 更新指定表的分表数量.
@@ -209,14 +214,16 @@ class TableSuffix(object):
                     init_table_sql = (
                         "INSERT INTO {new_name} SELECT * FROM {old_name} "
                         "WHERE id > :start_id AND id <= :end_id "
-                        "LIMIT :start_id, :data_size"
                     ).format(
                         new_name='%s_%s' % (self.table_name, str(suffix_num)),
                         old_name='%s_bck' % self.table_name)
 
-                    start_id = self.table_capacity * (suffix_num - 1),
+                    start_id = self.table_capacity * (suffix_num - 1)
                     end_id = self.table_capacity * suffix_num
-                    params = dict(end_id=end_id, data_size=data_size)
+                    params = dict(
+                        start_id=start_id,
+                        end_id=end_id,
+                        data_size=data_size)
 
                     # 如果单表数据量大, 分批导入数据.
                     if (end_id - start_id) > data_size:
@@ -229,14 +236,12 @@ class TableSuffix(object):
                                 'start_id': start_id + data_size * (i - 1)
                             })
 
-                            self.db.execute(init_table_sql, params=params)
-                            self.db.commit()
-                            time.sleep(sleep_times)
+                            self._execute_sleep(
+                                init_table_sql, params, sleep_times)
                     else:
                         params.update({'start_id': start_id})
-                        self.db.execute(init_table_sql, params=params)
-                        self.db.commit()
-                        time.sleep(sleep_times)
+                        self._execute_sleep(
+                            init_table_sql, params, sleep_times)
 
     def drop_table(self):
         """删除测试创建的表.

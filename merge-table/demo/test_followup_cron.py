@@ -35,25 +35,28 @@ class BaseTestCase(TestCase):
         followup.table_capacity = 30
         followup.union_number = 0
 
-        # 1 >>>>>> 首次分表.
-        followup.run()
-        print('1 >>>>>> 首次分表 %s' % followup.table_suffix)
-        assert followup.table_suffix == 4
+        try:
+            # 1 >>>>>> 首次分表.
+            followup.run()
+            print('1 >>>>>> 首次分表 %s' % followup.table_suffix)
+            assert followup.table_suffix == 4
 
-        # 以下数据写入最后follow_4表.
-        for _ in range(0, 10):
-            db_session.execute(self.insert_sql)
-        db_session.commit()
+            # 以下数据写入最后follow_4表.
+            for _ in range(0, 10):
+                db_session.execute(self.insert_sql)
+            db_session.commit()
 
-        # 2 >>>>>> CRON分表, 检测到新写入数据增新表follow_5.
-        followup.run()
-        print('2 >>>>>> CRON分表 %s' % followup.table_suffix)
-        assert followup.table_suffix == 5
+            # 2 >>>>>> CRON分表, 检测到新写入数据增新表follow_5.
+            followup.run()
+            print('2 >>>>>> CRON分表 %s' % followup.table_suffix)
+            assert followup.table_suffix == 5
 
-        # 以下数据写入最后follow_5表.
-        for _ in range(0, 10):
-            db_session.execute(self.insert_sql)
-        db_session.commit()
-
-        assert followup.table_latest == 120
-        followup.drop_table()
+            # 以下数据写入最后follow_5表.
+            for _ in range(0, 10):
+                db_session.execute(self.insert_sql)
+            db_session.commit()
+            assert followup.table_latest == 120
+        except Exception as ex:
+            print(ex)
+        finally:
+            followup.drop_table()
