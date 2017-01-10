@@ -5,8 +5,9 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from envcfg.json.demo import DEBUG, MYSQL_CONNECTION_STRING
 
-debug = DEBUG
-db_engine = create_engine(MYSQL_CONNECTION_STRING, echo=True, pool_recycle=180)
+debug = bool(DEBUG)
+db_engine = create_engine(
+    MYSQL_CONNECTION_STRING, echo=debug, pool_recycle=180)
 db_session = scoped_session(sessionmaker(bind=db_engine))()
 
 if __name__ == '__main__':
